@@ -1,0 +1,63 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  TagKeysList:
+    Type: CommaDelimitedList
+    Description: Allowed restriction on allowed tag keys with comma as delimitor. Eg=name,resource
+    Default: '*'
+  ParameterPrefix:
+    Type: String
+    Description: Parameters prefix.
+    Default: '*'
+Transform: AWS::Serverless-2016-10-31
+Description: To retrieve parameters from AWS Systems Manager's Parameter Store.
+Resources:
+  SsmParametersGetterLambdaRole:
+      Type: "AWS::IAM::Role"
+      Properties:
+        ManagedPolicyArns:
+            - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Sid: "AllowLambdaServiceToAssumeRole"
+              Effect: "Allow"
+              Action:
+                - "sts:AssumeRole"
+              Principal:
+                Service:
+                  - "lambda.amazonaws.com"
+                  - "ssm.amazonaws.com"
+
+  SsmParametersGetterLambdaRolePolicy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: "SsmParametersGetterLambdaRolePolicy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+                - ssm:GetParameters
+            Condition:
+              ForAllValues:StringEquals:
+                'aws:TagKeys' : !Ref TagKeysList
+            Resource:
+              - Fn::Sub:
+                  - arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${parameterPrefix}
+                  - parameterPrefix:
+                      Ref: ParameterPrefix
+      Roles:
+        - Ref: "SsmParametersGetterLambdaRole"
+
+  SsmParametersGetterLambda:
+    Type: AWS::Serverless::Function
+    DependsOn: SsmParametersGetterLambdaRole
+    Properties:
+      FunctionName: ssm-parameters-getter-lambda
+      Handler: index.handler
+      Description: To retrieve parameters from AWS Systems Manager's Parameter Store
+      Runtime: nodejs8.10
+      CodeUri: s3://my-sar-artifact/ssm-parameters-getter-lambda/archive.zip
+      MemorySize: 128
+      Timeout: 5
+      Role: !GetAtt SsmParametersGetterLambdaRole.Arn
