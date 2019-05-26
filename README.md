@@ -34,6 +34,9 @@ Following the principle of least privilege, there are two options that allows re
 }
 ```
 
+# Deployment
+
+Deploy manually using the source code: index.js or deploy it directly from AWS Serverless Application Repository with name: `ssm-parameters-getter-lambda`. Remember to check `Show apps that create custom IAM roles or resource policies` as if this Lambda requires additional role. 
 
 
 # References:
